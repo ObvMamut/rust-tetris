@@ -1,10 +1,9 @@
-use oorandom::Rand32;
-use ggez::{event, graphics, input::keyboard::{KeyCode, KeyInput}, Context, GameResult, GameError, glam::*, glam};
-use std::collections::VecDeque;
+use ggez::{event, graphics, input::keyboard::{KeyCode}, Context, GameResult, GameError, glam::*, glam};
 use std::env;
 use std::path::PathBuf;
-use ggez::graphics::Canvas;
-use crate::GameState::NotStarted;
+use ggez::input::keyboard::KeyCode::B;
+use rand::Rng;
+use ggez::input::keyboard::KeyInput;
 
 
 
@@ -19,7 +18,8 @@ mod data {
     );
 
 
-    pub(crate) const DESIRED_FPS: u32 = 8;}
+    pub(crate) const DESIRED_FPS: u32 = 60;
+}
 
 #[derive(PartialEq)]
 enum GameState {
@@ -30,9 +30,10 @@ enum GameState {
 
 #[derive(PartialEq)]
 struct Board {
-    board: [[u32;12];22],
-    rng: Rand32,
-    last_block: Vec<Vec<u32>>
+    board : [[u32;12];22],
+    last_block : Vec<Vec<u32>>,
+    last_block_id : u32,
+    fall_updater : u32
 }
 
 #[derive(PartialEq)]
@@ -47,16 +48,6 @@ impl Board {
 
         let mut init_board: [[u32;12];22] = [
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ,1],
-            [1, 2, 3, 4, 5, 6, 7, 8, 0, 0, 2, 1],
-            [1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 1],
             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -66,21 +57,29 @@ impl Board {
             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ,1]
 
         ];
 
-        let mut seed: [u8; 8] = [0; 8];
-        getrandom::getrandom(&mut seed[..]).expect("Could not create RNG seed");
 
-        let mut rng = Rand32::new(u64::from_ne_bytes(seed));
 
 
         Board {
             board : init_board,
-            rng : rng,
-            last_block : vec![]
+            last_block : vec![vec![]],
+            last_block_id : 0,
+            fall_updater : 0
         }
 
     }
@@ -95,22 +94,146 @@ impl Board {
         );
     }
 
-    fn can_new_piece(&mut self) -> bool {
+    fn piece_can_move(&mut self, mut coords: Vec<Vec<u32>>) -> bool {
+
+
+        let mut coords_to_check: Vec<Vec<u32>> = vec![];
+
+        for coord in coords {
+            if self.last_block.contains(&coord.clone()) {
+
+            } else {
+                coords_to_check.push(coord.clone());
+            }
+        }
+
+        //println!("{:?}", coords_to_check);
+
+
+        for single_coord in coords_to_check {
+            if self.board[single_coord[0] as usize][single_coord[1] as usize] != 0 {
+                return false
+            }
+        }
+
+
         return true
     }
 
-    fn spawn_new_piece(&mut self) -> Vec<Vec<i32>> {
-        let mut pos: Vec<Vec<i32>> = vec![];
+    fn fall_block(&mut self) {
+        let mut bin_checker = 0;
+        let block_coords = self.last_block.clone();
+        let mut new_block_coords: Vec<Vec<u32>> = vec![];
 
-        return pos
-    }
 
-    fn move_piece(&mut self) {
-        if Board::can_new_piece(self) {
-            let mut pieces_coords: Vec<Vec<i32>> = Board::spawn_new_piece(self);
+        if self.fall_updater == 60 {
+            // second has passed
+            bin_checker = 1;
+            self.fall_updater = 0;
+        } else {
+            self.fall_updater += 1;
+        }
+
+        if bin_checker == 1 {
+
+            for coord in &block_coords {
+                let new_coord = vec![(coord[0] + 1), coord[1]];
+                new_block_coords.push(new_coord);
+            }
+
+
+
+            if Board::piece_can_move(self, new_block_coords.clone()) == true {
+
+                // remove the old blocks
+
+                for coord in block_coords.clone() {
+                    self.board[coord[0] as usize][coord[1] as usize] = 0;
+                }
+
+                for coord in &new_block_coords {
+                    self.board[coord[0] as usize][coord[1] as usize] = self.last_block_id;
+                }
+
+                self.last_block = new_block_coords.clone();
+
+
+            } else {
+                self.last_block = vec![vec![]];
+                self.last_block_id = 0;
+            }
 
         }
+
+
     }
+
+    fn spawn_new_piece(&mut self) {
+
+        let mut rng = rand::thread_rng();
+        let rand_int =  rng.gen_range(2..9);
+        let mut coords_of_piece: Vec<Vec<u32>>;
+
+
+        match rand_int {
+            2 => {
+                // light blue / horizontal 1x4
+                coords_of_piece = vec![vec![1, 4], vec![1, 5], vec![1, 6], vec![1, 7]];
+            }
+            3 => {
+                // green / z (inversed)
+                coords_of_piece = vec![vec![2, 5], vec![2, 6], vec![1, 6], vec![1, 7]];
+
+            }
+            4 =>  {
+                // dark blue / l (inversed) horizontal
+                coords_of_piece = vec![vec![1, 4], vec![2, 4], vec![2, 5], vec![2, 6]];
+
+            }
+            5 => {
+                // magenta / inversed hat
+                coords_of_piece = vec![vec![1, 4], vec![1, 5], vec![1, 6], vec![2, 5]];
+
+            }
+            6 => {
+                // orange / l horizontal
+                coords_of_piece = vec![vec![1, 4], vec![1, 5], vec![1, 6], vec![2, 5]];
+
+            }
+            7 => {
+                // red
+                coords_of_piece = vec![vec![1, 6], vec![2, 4], vec![2, 5], vec![2, 6]];
+
+            }
+            8 => {
+                // yellow 2x2
+                coords_of_piece = vec![vec![1, 5], vec![1, 6], vec![2, 5], vec![2, 6]];
+
+            }
+
+            _ => {
+                coords_of_piece = vec![vec![]];
+            }
+
+        }
+
+        if coords_of_piece != vec![vec![]] {
+            if Board::piece_can_move(self, coords_of_piece.clone()) {
+                for coord in &coords_of_piece {
+                    self.board[coord[0] as usize][coord[1] as usize] = rand_int;
+                }
+
+                self.last_block = coords_of_piece;
+                self.last_block_id = rand_int;
+            }
+
+
+
+        }
+
+
+    }
+
 
 
     fn display_board(&mut self, canvas: &mut graphics::Canvas) {
@@ -153,9 +276,182 @@ impl Board {
             }
 
         }
+
+    fn move_piece(&mut self, move_type: &str) {
+        let mut coords: Vec<Vec<u32>> = vec![vec![]];
+
+        match move_type {
+            "A" => {
+                // move left
+                coords = Board::move_left(self);
+            },
+            "W" => {
+                // rotate
+
+                match self.last_block_id {
+                    2 => {
+                        coords = Board::rotate_2(self);
+                    }
+                    3 => {
+                        coords = Board::rotate_3(self);
+                    }
+                    _ => {}
+                }
+            },
+            "S" => {
+                // down
+                coords = Board::get_drop_coords(self);
+            },
+            "D" => {
+                // right
+                coords = Board::move_right(self);
+            },
+            _ => {
+                coords = vec![vec![]];
+            }
+        }
+
+        if coords != vec![vec![]] {
+
+            if Board::piece_can_move(self, coords.clone()) == true {
+                for coord in self.last_block.clone() {
+                    self.board[coord[0] as usize][coord[1] as usize] = 0;
+                }
+
+                for coord in &coords {
+                    self.board[coord[0] as usize][coord[1] as usize] = self.last_block_id;
+                }
+
+                self.last_block = coords.clone();
+            }
+        }
+
+
+    }
+
+    fn get_drop_coords(&mut self) -> Vec<Vec<u32>> {
+        let mut crds = vec![];
+
+        for x in 1..23 {
+            for crd in &self.last_block {
+                let mut crd_to_push = vec![crd[0] + x, crd[1]];
+                crds.push(crd_to_push);
+            }
+
+            if Board::piece_can_move(self, crds.clone()) == false {
+                crds = vec![];
+                for crd in &self.last_block {
+                    let mut crd_to_push = vec![crd[0] + x - 1, crd[1]];
+                    crds.push(crd_to_push);
+                }
+
+                return crds
+            }
+
+            crds = vec![];
+        }
+
+        return crds
     }
 
 
+
+
+    // Horizontal 1x4
+    fn rotate_2(&mut self) -> Vec<Vec<u32>> {
+        let mut rot_coords: Vec<Vec<u32>> = vec![];
+        let mut mode = "";
+        let mut crd0 = &self.last_block[0];
+        let mut crd1 = &self.last_block[1];
+
+        if crd0[0] == crd1[0] {
+            mode = "vertical";
+        } else if crd0[1] == crd1[1] {
+            mode = "horizontal";
+        }
+
+        if mode == "vertical" {
+            for index in 0..4 {
+                let mut pointer: u32 = index as u32;
+                let og_crds = &self.last_block[0];
+                let mut coord = &self.last_block[pointer as usize];
+                let crd = vec![{ coord[0] - pointer }, coord[1] - pointer];
+                rot_coords.push(crd);
+            }
+        } else if mode == "horizontal" {
+            for index in 0..4 {
+                let mut pointer: u32 = index as u32;
+                let og_crds = &self.last_block[0];
+                let mut coord = &self.last_block[pointer as usize];
+                let crd = vec![{ coord[0] + pointer }, coord[1] + pointer];
+                rot_coords.push(crd);
+            }
+        }
+        
+        return rot_coords;
+    }
+
+    //
+    fn rotate_3(&mut self) -> Vec<Vec<u32>> {
+        let rot_coords: Vec<Vec<u32>> = vec![];
+
+        return rot_coords;
+    }
+
+
+    fn rotate_4(&mut self) -> Vec<Vec<u32>> {
+        let rot_coords: Vec<Vec<u32>> = vec![];
+
+        return rot_coords;
+    }
+    fn rotate_5(&mut self) -> Vec<Vec<u32>> {
+        let rot_coords: Vec<Vec<u32>> = vec![];
+
+        return rot_coords;
+    }
+
+    fn rotate_6(&mut self) -> Vec<Vec<u32>> {
+        let rot_coords: Vec<Vec<u32>> = vec![];
+
+        return rot_coords;
+    }
+    fn rotate_8(&mut self) -> Vec<Vec<u32>> {
+        let rot_coords: Vec<Vec<u32>> = vec![];
+
+        return rot_coords;
+    }
+    fn move_left(&mut self) -> Vec<Vec<u32>> {
+        let mut new_coords: Vec<Vec<u32>> = vec![];
+
+        for coord in &self.last_block {
+            let new_coord = vec![(coord[0]), coord[1] - 1];
+            new_coords.push(new_coord);
+        }
+
+        return new_coords;
+    }
+    fn move_right(&mut self) -> Vec<Vec<u32>> {
+        let mut new_coords: Vec<Vec<u32>> = vec![];
+
+        for coord in &self.last_block {
+            let new_coord = vec![(coord[0]), coord[1] + 1];
+            new_coords.push(new_coord);
+        }
+
+        return new_coords;
+    }
+    fn move_down(&mut self) -> Vec<Vec<u32>> {
+        let mut new_coords: Vec<Vec<u32>> = vec![];
+
+        for coord in &self.last_block {
+            let new_coord = vec![(coord[0] + 1), coord[1]];
+            new_coords.push(new_coord);
+        }
+
+        return new_coords;
+    }
+
+}
 
 impl Game {
     fn new() -> Self {
@@ -166,19 +462,25 @@ impl Game {
             score : 0
         }
     }
-
-
-
 }
 
 impl event::EventHandler<ggez::GameError> for Game {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
-        if ctx.keyboard.is_key_pressed(KeyCode::G) {
-            println!("GAME STARTED")
-        }
-
         while ctx.time.check_update_time(data::DESIRED_FPS) {
+
             if self.state == GameState::Started {
+                println!("{:?}", self.board.last_block);
+
+                if self.board.last_block != vec![vec![]] {
+                    println!("{:?}", self.board.fall_updater);
+                    self.board.fall_block();
+                } else {
+                    self.board.spawn_new_piece();
+                }
+
+
+                println!("{:?}", ctx.keyboard.pressed_keys());
+
 
             }
         }
@@ -189,7 +491,6 @@ impl event::EventHandler<ggez::GameError> for Game {
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut canvas =
             graphics::Canvas::from_frame(ctx, graphics::Color::from([0.349, 0.345, 0.639, 1.0]));
-
 
 
         // Display board
@@ -214,6 +515,32 @@ impl event::EventHandler<ggez::GameError> for Game {
         canvas.finish(ctx)?;
 
         ggez::timer::yield_now();
+        Ok(())
+    }
+
+    fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, _repeated: bool, ) -> GameResult {
+        match input.keycode {
+            Some(KeyCode::W) => {
+                self.board.move_piece("W");
+            }
+            Some(KeyCode::A) => {
+                self.board.move_piece("A");
+            }
+            Some(KeyCode::D) => {
+                self.board.move_piece("D");
+            }
+            Some(KeyCode::S) => {
+                self.board.move_piece("S");
+            }
+            Some(KeyCode::G) => {
+                if self.state == GameState::NotStarted {
+                    self.state = GameState::Started;
+                    self.board.spawn_new_piece();
+                }
+            }
+            Some(KeyCode::Escape) => ctx.request_quit(),
+            _ => (), // Do nothing
+        }
         Ok(())
     }
 }
