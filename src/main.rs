@@ -1,12 +1,10 @@
+#[allow(unused)]
+
 use ggez::{event, graphics, input::keyboard::{KeyCode}, Context, GameResult, GameError, glam::*, glam};
 use std::env;
 use std::path::PathBuf;
-use ggez::input::keyboard::KeyCode::B;
 use rand::Rng;
 use ggez::input::keyboard::KeyInput;
-
-
-
 
 mod data {
     const GRID_SIZE: (i16, i16) = (22,32); // 22*12 for tetris screen | 10*22 for title | 32*10 for additional info
@@ -373,7 +371,6 @@ impl Board {
         if mode == "vertical" {
             for index in 0..4 {
                 let mut pointer: u32 = index as u32;
-                let og_crds = &self.last_block[0];
                 let mut coord = &self.last_block[pointer as usize];
                 let crd = vec![{ coord[0] - pointer }, coord[1] - pointer];
                 rot_coords.push(crd);
@@ -381,7 +378,6 @@ impl Board {
         } else if mode == "horizontal" {
             for index in 0..4 {
                 let mut pointer: u32 = index as u32;
-                let og_crds = &self.last_block[0];
                 let mut coord = &self.last_block[pointer as usize];
                 let crd = vec![{ coord[0] + pointer }, coord[1] + pointer];
                 rot_coords.push(crd);
