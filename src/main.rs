@@ -28,23 +28,23 @@ enum GameState {
 
 #[derive(PartialEq)]
 struct Board {
-    board : [[u32;12];22],
-    last_block : Vec<Vec<u32>>,
-    last_block_id : u32,
-    fall_updater : u32
+    board : [[i32;12];22],
+    last_block : Vec<Vec<i32>>,
+    last_block_id : i32,
+    fall_updater : i32
 }
 
 #[derive(PartialEq)]
 struct Game {
     state : GameState,
     board : Board,
-    score : u32,
+    score : i32,
 }
 
 impl Board {
     pub fn new() -> Self {
 
-        let mut init_board: [[u32;12];22] = [
+        let mut init_board: [[i32;12];22] = [
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ,1],
             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -92,10 +92,10 @@ impl Board {
         );
     }
 
-    fn piece_can_move(&mut self, mut coords: Vec<Vec<u32>>) -> bool {
+    fn piece_can_move(&mut self, mut coords: Vec<Vec<i32>>) -> bool {
 
 
-        let mut coords_to_check: Vec<Vec<u32>> = vec![];
+        let mut coords_to_check: Vec<Vec<i32>> = vec![];
 
         for coord in coords {
             if self.last_block.contains(&coord.clone()) {
@@ -121,7 +121,7 @@ impl Board {
     fn fall_block(&mut self) {
         let mut bin_checker = 0;
         let block_coords = self.last_block.clone();
-        let mut new_block_coords: Vec<Vec<u32>> = vec![];
+        let mut new_block_coords: Vec<Vec<i32>> = vec![];
 
 
         if self.fall_updater == 60 {
@@ -170,7 +170,7 @@ impl Board {
 
         let mut rng = rand::thread_rng();
         let rand_int =  rng.gen_range(2..9);
-        let mut coords_of_piece: Vec<Vec<u32>>;
+        let mut coords_of_piece: Vec<Vec<i32>>;
 
 
         match rand_int {
@@ -276,7 +276,7 @@ impl Board {
         }
 
     fn move_piece(&mut self, move_type: &str) {
-        let mut coords: Vec<Vec<u32>> = vec![vec![]];
+        let mut coords: Vec<Vec<i32>> = vec![vec![]];
 
         match move_type {
             "A" => {
@@ -286,15 +286,7 @@ impl Board {
             "W" => {
                 // rotate
 
-                match self.last_block_id {
-                    2 => {
-                        coords = Board::rotate_2(self);
-                    }
-                    3 => {
-                        coords = Board::rotate_3(self);
-                    }
-                    _ => {}
-                }
+                coords = Board::rotate(self);
             },
             "S" => {
                 // down
@@ -327,7 +319,7 @@ impl Board {
 
     }
 
-    fn get_drop_coords(&mut self) -> Vec<Vec<u32>> {
+    fn get_drop_coords(&mut self) -> Vec<Vec<i32>> {
         let mut crds = vec![];
 
         for x in 1..23 {
@@ -352,72 +344,61 @@ impl Board {
         return crds
     }
 
+    fn coords_to_coords(&mut self, crds: Vec<i32>) -> Vec<i32> {
+        let mut coord = vec![];
+        let mut x: i32;
+        let mut y: i32;
+
+        x = (21 - crds[0] as i32);
+        y = (crds[1] as i32);
+
+        coord.push(x);
+        coord.push(y);
 
 
 
-    // Horizontal 1x4
-    fn rotate_2(&mut self) -> Vec<Vec<u32>> {
-        let mut rot_coords: Vec<Vec<u32>> = vec![];
-        let mut mode = "";
-        let mut crd0 = &self.last_block[0];
-        let mut crd1 = &self.last_block[1];
+        return coord
+    }
 
-        if crd0[0] == crd1[0] {
-            mode = "vertical";
-        } else if crd0[1] == crd1[1] {
-            mode = "horizontal";
+
+
+    fn rotate(&mut self) -> Vec<Vec<i32>> {
+        let mut coords : Vec<Vec<i32>> = vec![];
+        let mut rot_coords : Vec<Vec<i32>> = vec![];
+        let mut rot_bo_coords : Vec<Vec<i32>> = vec![];
+
+        for c1 in self.last_block.clone() {
+            let mut coord = Board::coords_to_coords(self, c1);
+            coords.push(coord);
         }
 
-        if mode == "vertical" {
-            for index in 0..4 {
-                let mut pointer: u32 = index as u32;
-                let mut coord = &self.last_block[pointer as usize];
-                let crd = vec![{ coord[0] - pointer }, coord[1] - pointer];
-                rot_coords.push(crd);
-            }
-        } else if mode == "horizontal" {
-            for index in 0..4 {
-                let mut pointer: u32 = index as u32;
-                let mut coord = &self.last_block[pointer as usize];
-                let crd = vec![{ coord[0] + pointer }, coord[1] + pointer];
-                rot_coords.push(crd);
-            }
+        let mut pivot = &coords[0];
+
+        let xc = pivot[0];
+        let yc = pivot[1];
+
+        for c2 in coords.clone() {
+            let mut x1 = ((c2[0] - xc) * 0) - ((c2[1] - yc) * -1) + xc;
+            let mut y1 = ((c2[0] - xc) * -1) + ((c2[1] - yc) * 0) + yc;
+
+            let mut crds = vec![x1, y1];
+            rot_coords.push(crds);
         }
-        
-        return rot_coords;
+
+        for c3 in rot_coords.clone() {
+            let mut coord = Board::coords_to_coords(self, c3);
+            rot_bo_coords.push(coord);
+        }
+
+        println!("{:?}", rot_bo_coords);
+
+        return rot_bo_coords.clone()
     }
 
-    //
-    fn rotate_3(&mut self) -> Vec<Vec<u32>> {
-        let rot_coords: Vec<Vec<u32>> = vec![];
-
-        return rot_coords;
-    }
 
 
-    fn rotate_4(&mut self) -> Vec<Vec<u32>> {
-        let rot_coords: Vec<Vec<u32>> = vec![];
-
-        return rot_coords;
-    }
-    fn rotate_5(&mut self) -> Vec<Vec<u32>> {
-        let rot_coords: Vec<Vec<u32>> = vec![];
-
-        return rot_coords;
-    }
-
-    fn rotate_6(&mut self) -> Vec<Vec<u32>> {
-        let rot_coords: Vec<Vec<u32>> = vec![];
-
-        return rot_coords;
-    }
-    fn rotate_8(&mut self) -> Vec<Vec<u32>> {
-        let rot_coords: Vec<Vec<u32>> = vec![];
-
-        return rot_coords;
-    }
-    fn move_left(&mut self) -> Vec<Vec<u32>> {
-        let mut new_coords: Vec<Vec<u32>> = vec![];
+    fn move_left(&mut self) -> Vec<Vec<i32>> {
+        let mut new_coords: Vec<Vec<i32>> = vec![];
 
         for coord in &self.last_block {
             let new_coord = vec![(coord[0]), coord[1] - 1];
@@ -426,8 +407,8 @@ impl Board {
 
         return new_coords;
     }
-    fn move_right(&mut self) -> Vec<Vec<u32>> {
-        let mut new_coords: Vec<Vec<u32>> = vec![];
+    fn move_right(&mut self) -> Vec<Vec<i32>> {
+        let mut new_coords: Vec<Vec<i32>> = vec![];
 
         for coord in &self.last_block {
             let new_coord = vec![(coord[0]), coord[1] + 1];
@@ -436,8 +417,8 @@ impl Board {
 
         return new_coords;
     }
-    fn move_down(&mut self) -> Vec<Vec<u32>> {
-        let mut new_coords: Vec<Vec<u32>> = vec![];
+    fn move_down(&mut self) -> Vec<Vec<i32>> {
+        let mut new_coords: Vec<Vec<i32>> = vec![];
 
         for coord in &self.last_block {
             let new_coord = vec![(coord[0] + 1), coord[1]];
