@@ -1,2 +1,5 @@
+result
+*.swp
+/.direnv
 /target/
 /.idea/
