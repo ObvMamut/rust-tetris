@@ -44,6 +44,7 @@ struct Game {
 impl Board {
     pub fn new() -> Self {
 
+
         let mut init_board: [[i32;12];22] = [
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ,1],
             [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -69,8 +70,6 @@ impl Board {
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ,1]
 
         ];
-
-
 
 
         Board {
@@ -428,6 +427,42 @@ impl Board {
         return new_coords;
     }
 
+
+    fn drop_down(&mut self) -> [[i32;12];22] {
+
+        let mut abtf: [[i32; 10]; 20] = [[0; 10]; 20];
+
+        for x in 1..21 {
+            abtf[x-1] = [self.board[x][1], self.board[x][2], self.board[x][3], self.board[x][4], self.board[x][5], self.board[x][6], self.board[x][7], self.board[x][8], self.board[x][9], self.board[x][10]]
+        }
+
+
+        abtf.rotate_right(1);
+
+        abtf[0] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+        let mut rabtf = self.board;
+
+
+        for t in 1..21 {
+            rabtf[t] = [1, abtf[t-1][0], abtf[t-1][1], abtf[t-1][2], abtf[t-1][3], abtf[t-1][4], abtf[t-1][5], abtf[t-1][6], abtf[t-1][7], abtf[t-1][8], abtf[t-1][9], 1];
+        }
+
+
+        return rabtf
+    }
+
+    fn if_last_row_filled(&mut self) -> bool {
+
+        if self.board[20].contains(&0) {
+            return false
+        }
+
+        self.board = Board::drop_down(self);
+
+        return true
+    }
+
 }
 
 impl Game {
@@ -455,6 +490,7 @@ impl event::EventHandler<ggez::GameError> for Game {
                     self.board.spawn_new_piece();
                 }
 
+                let mut drop_debug = self.board.if_last_row_filled();
 
                 println!("{:?}", ctx.keyboard.pressed_keys());
 
@@ -497,6 +533,7 @@ impl event::EventHandler<ggez::GameError> for Game {
 
     fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, _repeated: bool, ) -> GameResult {
         match input.keycode {
+
             Some(KeyCode::W) => {
                 self.board.move_piece("W");
             }
@@ -515,7 +552,9 @@ impl event::EventHandler<ggez::GameError> for Game {
                     self.board.spawn_new_piece();
                 }
             }
-            Some(KeyCode::Escape) => ctx.request_quit(),
+            Some(KeyCode::Q) => {ctx.request_quit()}
+            Some(KeyCode::Escape) => {ctx.request_quit()}
+
             _ => (), // Do nothing
         }
         Ok(())
